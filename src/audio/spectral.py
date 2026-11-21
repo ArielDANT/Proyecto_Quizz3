@@ -124,3 +124,32 @@ def analyze_frame(
         rms=rms,
         peak_freq=peak_freq,
     )
+
+
+
+
+### Módulo 1 - Avance 2:
+def compute_log_bands(
+    freqs: np.ndarray,
+    magnitudes: np.ndarray,
+    num_bands: int = 64,
+    min_freq: float = MIN_FREQ,
+    max_freq: float = MAX_FREQ,
+) -> np.ndarray:
+    """
+    Agrupa el espectro lineal de la FFT en bandas espaciadas logarítmicamente,
+    alineadas con la percepción humana del sonido (octavas).
+    """
+    edges = np.geomspace(min_freq, max_freq, num_bands + 1)
+    bands = np.zeros(num_bands, dtype=np.float32)
+
+    for i in range(num_bands):
+        low, high = edges[i], edges[i + 1]
+        mask = (freqs >= low) & (freqs < high)
+        if np.any(mask):
+            bands[i] = float(np.max(magnitudes[mask]))
+        else:
+            center = 0.5 * (low + high)
+            bands[i] = float(np.interp(center, freqs, magnitudes))
+
+    return bands
