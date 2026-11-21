@@ -21,8 +21,13 @@ from PySide6.QtWidgets import (
 )
 
 from src.audio.capture import AudioStreamCapture, list_input_devices
-from src.audio.spectral import analyze_frame, compute_log_bands
+# from src.audio.spectral import analyze_frame, compute_log_bands
 from src.config import MAX_FREQ, MIN_FREQ, SAMPLE_RATE
+
+#Del módulo 2 y Afinador:
+from src.analysis.pitch import detect_pitch_yin
+from src.audio.spectral import analyze_frame, compute_log_bands, compute_rms
+from src.ui.tuner_widget import TunerWidget
 
 
 THEMES = [
@@ -188,6 +193,11 @@ class VisualizerWindow(QWidget):
         dual_layout.addWidget(self.dual_fft_plot)
         self.stack.addWidget(dual_widget)
 
+
+        # Modo 4: Afinador (Módulo 2A)
+        self.tuner_widget = TunerWidget()
+        self.stack.addWidget(self.tuner_widget)
+
         # Empezamos en el modo Onda (índice 1)
         self.stack.setCurrentIndex(1)
         canvas_layout.addWidget(self.stack, stretch=1)
@@ -234,7 +244,7 @@ class VisualizerWindow(QWidget):
 
         self.mode_group = QButtonGroup(self)
         self.mode_group.setExclusive(True)
-        for idx, name in enumerate(("Barras", "Onda", "Circular", "Dual")):
+        for idx, name in enumerate(("Barras", "Onda", "Circular", "Dual", "Afinador")):
             btn = QPushButton(name)
             btn.setObjectName("ModeBtn")
             btn.setCheckable(True)
@@ -393,20 +403,30 @@ class VisualizerWindow(QWidget):
         smoothing = self.smooth_slider.value() / 100.0
         window_type = self.window_combo.currentData()
 
-        frame = analyze_frame(
-            samples=samples,
-            sample_rate=SAMPLE_RATE,
-            window_type=window_type,
-            sensitivity=sensitivity,
-            prev_magnitudes=self.prev_magnitudes,
-            smoothing=smoothing,
-        )
-        self.prev_magnitudes = frame.magnitudes
+        mode = self.stack.currentIndex()
+
+        if mode == 4:
+            scaled = samples * sensitivity
+            rms = compute_rms(scaled)
+            raw_freq, conf = detect_pitch_yin(scaled, sample_rate=SAMPLE_RATE)
+            display_freq = self.tuner_widget.update_reading(raw_freq, conf)
+        else:
+            frame = analyze_frame(
+                samples=samples,
+                sample_rate=SAMPLE_RATE,
+                window_type=window_type,
+                sensitivity=sensitivity,
+                prev_magnitudes=self.prev_magnitudes,
+                smoothing=smoothing,
+            )
+            self.prev_magnitudes = frame.magnitudes
+            rms = frame.rms
+            display_freq = frame.peak_freq
 
         # Actualizar HUD de métricas
-        vol_pct = min(int(frame.rms * 350), 100)
+        vol_pct = min(int(rms * 350), 100)
         self.vol_label.setText(f"Volumen:        {vol_pct:3d} %")
-        self.freq_label.setText(f"Frecuencia pico: {frame.peak_freq:6.1f} Hz")
+        self.freq_label.setText(f"Frecuencia pico: {display_freq:6.1f} Hz")
 
         self._frame_count += 1
         now = time.perf_counter()
@@ -416,9 +436,10 @@ class VisualizerWindow(QWidget):
             self._last_fps_time = now
         self.fps_label.setText(f"FPS:            {self._fps_display:3d} fps")
 
-        # Dibujar solo el modo visible en pantalla
-        mode = self.stack.currentIndex()
+        if mode == 4:
+            return
 
+        # Dibujar visualizaciones del Módulo 1
         if mode in (0, 2):
             bands = compute_log_bands(
                 frame.freqs, frame.magnitudes, num_bands=self.num_bands
