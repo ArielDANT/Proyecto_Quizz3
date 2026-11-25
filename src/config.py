@@ -1,5 +1,7 @@
 """
 Configuración global de adquisición de audio y análisis espectral.
+En efecto, aquí colocamos todos los parámetros físicos, matemáticos y 
+digitales que usaremos a lo largo del programa.
 """
 
 # Frecuencia de muestreo (Hz). Por el Teorema de Nyquist-Shannon,
@@ -10,11 +12,11 @@ SAMPLE_RATE = 44100
 # 1024 / 44100 ≈ 23.2 milisegundos de latencia por lectura.
 BLOCK_SIZE = 1024
 
-# Tamaño de la ventana de análisis para la FFT (debe ser potencia de 2).
+# Tamaño de la ventana de análisis para la FFT (siempre siendo potencia de 2).
 # La resolución en frecuencia será: Δf = SAMPLE_RATE / FFT_SIZE ≈ 10.77 Hz.
 FFT_SIZE = 4096
 
-# Canal mono (1 canal es suficiente para análisis musical).
+# Canal mono (SUFICIENTE PARA PRACTICIDAD MUSCIAAL).
 CHANNELS = 1
 
 # Tipo de función ventana para evitar fuga espectral ("hann" o "hamming").
